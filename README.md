@@ -93,16 +93,16 @@ Then in HA: **Settings > Add-ons > Add-on Store** > three-dot menu > **Check for
 
 ## Setting Up the GPS Pipeline
 
-This add-on is step 1 of a 3-part pipeline:
+This add-on is step 1 of a 2-part pipeline:
 
 ```
-GPS Init             gpsd add-on            HA GPSD integration
-(this add-on)   -->  (e.g. gpsd2mqtt)  -->  (built-in)
-Sends AT cmds        Reads NMEA from        Exposes lat/lon as
-to AT port           NMEA port              HA sensor entities
+GPS Init             gpsd2mqtt add-on
+(this add-on)   -->  (reads NMEA, publishes to MQTT)
+Sends AT cmds        Auto-discovers as a device tracker
+to AT port           in Home Assistant
 ```
 
-### Step 2: Install a gpsd add-on
+### Step 2: Install the gpsd2mqtt add-on
 
 We recommend [gpsd2mqtt](https://github.com/corvy/ha-addons/tree/main/gpsd2mqtt):
 
@@ -111,14 +111,7 @@ We recommend [gpsd2mqtt](https://github.com/corvy/ha-addons/tree/main/gpsd2mqtt)
 3. Install **GPSD to MQTT**
 4. Configure the GPS device to the modem's **NMEA port** (the `if01` interface):
    - Example: `/dev/serial/by-id/usb-Android_Android-if01-port0`
-5. Start it
-
-### Step 3: Enable the GPSD integration
-
-1. Go to **Settings > Devices & Services > Add Integration**
-2. Search for **GPSD**
-3. Host: `localhost`, Port: `2947`
-4. Latitude, longitude, and other GPS attributes appear as sensor entities
+5. Start it — a device tracker entity is auto-discovered in Home Assistant via MQTT
 
 ## Troubleshooting
 
@@ -165,4 +158,4 @@ We recommend [gpsd2mqtt](https://github.com/corvy/ha-addons/tree/main/gpsd2mqtt)
 - [Quectel GNSS AT Commands Manual (PDF)](https://sixfab.com/wp-content/uploads/2018/09/Quectel_EC25EC21_GNSS_AT_Commands_Manual_V1.1.pdf)
 - [Quectel GNSS Application Note (PDF)](https://forums.quectel.com/uploads/short-url/jujxS4iCyMIMmoYNv61ixKO9Ij9.pdf)
 - [gpsd2mqtt Add-on](https://github.com/corvy/ha-addons/tree/main/gpsd2mqtt)
-- [HA GPSD Integration](https://www.home-assistant.io/integrations/gpsd/)
+- [gpsd2mqtt Add-on Repository](https://github.com/corvy/ha-addons)
