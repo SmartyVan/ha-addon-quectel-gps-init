@@ -1,6 +1,6 @@
 name: GPS Init
 description: Initializes Quectel Mini PCIe modems for GPS-only mode (disables cellular radio, enables GNSS)
-version: "1.1.0"
+version: "1.1.1"
 slug: gps-init
 url: https://github.com/SmartyVan/ha-addon-quectel-gps-init
 arch:

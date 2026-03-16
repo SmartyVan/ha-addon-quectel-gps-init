@@ -1,0 +1,7 @@
+configuration:
+  at_port:
+    name: AT Port
+    description: >-
+      Select the modem's AT command port. For Quectel modems this is
+      typically the "if02" interface (e.g. usb-Android_Android-if02-port0).
+      If you see multiple "Android" devices, pick the one ending in if02.
