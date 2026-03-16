@@ -1,42 +1,76 @@
 # GPS Init — Home Assistant Add-on
 
-A minimal Home Assistant OS add-on that initializes a Quectel EG25-G Mini PCIe modem for **GPS-only mode** (no cellular). Designed for the Arduino Pro 4G GNSS Module (TPX00200) in a Seeed Studio Raspberry Pi CM5 edge computer.
+A minimal Home Assistant OS add-on that initializes Quectel Mini PCIe modems for **GPS-only mode** (no cellular). Sends AT commands at boot to disable the cellular radio and enable GNSS, then NMEA sentences flow on a separate USB serial port for gpsd to consume.
+
+Tested with the Quectel EC25-A on a Seeed Studio Raspberry Pi CM5 edge computer.
 
 ## What It Does
 
-On every boot, this add-on sends AT commands to the modem to:
+On every boot, this add-on sends AT commands to the modem's AT port:
 
-1. **Disable the cellular radio** (`AT+CFUN=4`) — puts the modem in airplane mode so it draws less power and doesn't attempt to register on any network
-2. **Set NMEA output to USB** (`AT+QGPSCFG="outport","usbnmea"`) — ensures GPS sentences are sent to `/dev/ttyUSB1` (saved to NVRAM, persists across reboots)
-3. **Enable GPS auto-start** (`AT+QGPSCFG="autogps",1`) — the modem will automatically start its GNSS engine on power-on (saved to NVRAM, persists across reboots)
+1. **Disable the cellular radio** (`AT+CFUN=4`) — airplane mode, less power draw, no network registration
+2. **Set NMEA output to USB** (`AT+QGPSCFG="outport","usbnmea"`) — ensures GPS sentences go to the NMEA port (saved to NVRAM)
+3. **Enable GPS auto-start** (`AT+QGPSCFG="autogps",1`) — GNSS starts automatically on module power-on (saved to NVRAM)
 4. **Start GNSS now** (`AT+QGPS=1`) — begins GPS acquisition immediately
 
 After initialization the add-on idles. It must run every boot because `AT+CFUN=4` does not persist across power cycles.
 
+## Compatible Modems
+
+This add-on works with Quectel modems that share the `AT+QGPS` / `AT+QGPSCFG` / `AT+CFUN` command set. All use the same 4-port USB serial layout.
+
+### Tested
+
+| Modem | Form Factor | Notes |
+|-------|-------------|-------|
+| **EC25-A** | Mini PCIe | North America LTE bands. Primary test hardware. |
+
+### Expected Compatible (same AT command set)
+
+| Series | Models | Form Factor |
+|--------|--------|-------------|
+| EC25 | EC25-E, EC25-AU, EC25-AF, etc. | Mini PCIe |
+| EG25 | EG25-G, EG25-GL | Mini PCIe |
+| EC21 | EC21-A, EC21-E, etc. | Mini PCIe |
+| EG91 | EG91-NA, EG91-E, etc. | Mini PCIe |
+| EG95 | EG95-NA, EG95-E, etc. | Mini PCIe |
+| BG96 | BG96 | Mini PCIe |
+| BG95 | BG95-M3 | Mini PCIe |
+| EM05 | EM05-E, EM05-G | M.2 |
+
+> **Not compatible** with SIMCom (SIM7600), Sierra Wireless (MC7455), or Telit modems — they use different AT command sets.
+
+If you test this add-on with a modem not listed under "Tested", please open an issue or PR to update this table!
+
 ## USB Port Mapping
 
-The Quectel EG25-G exposes three USB serial ports:
+Quectel LTE Standard modules expose 4 USB serial ports:
 
-| Port | Function | Used By |
-|------|----------|---------|
-| `/dev/ttyUSB0` | DM (diagnostic) | — |
-| `/dev/ttyUSB1` | NMEA (GPS sentences) | gpsd add-on |
-| `/dev/ttyUSB2` | AT commands | This add-on |
+| Port | Interface | Function | Used By |
+|------|-----------|----------|---------|
+| `ttyUSB0` | `if00` | DM (diagnostic) | — |
+| `ttyUSB1` | `if01` | NMEA (GPS sentences) | gpsd add-on |
+| `ttyUSB2` | `if02` | AT commands | **This add-on** |
+| `ttyUSB3` | `if03` | PPP/modem | — |
 
-## Prerequisites
-
-- Home Assistant OS (tested on Raspberry Pi CM5 / aarch64)
-- Quectel EG25-G based Mini PCIe module installed and recognized by the kernel (`option` driver)
-- SSH or Samba access to the HA machine for copying files
+> **Important:** The `ttyUSBx` numbering can shift if other USB-serial devices are plugged in. Use the stable `/dev/serial/by-id/` paths instead. The add-on configuration presents a dropdown of available serial devices.
 
 ## Installation
 
-### 1. Copy the add-on to your HA machine
+### Option A: Add as a repository (recommended)
 
-Using Samba (recommended):
+1. In Home Assistant, go to **Settings > Add-ons > Add-on Store**
+2. Click the three-dot menu (top right) > **Repositories**
+3. Add: `https://github.com/SmartyVan/ha-addon-quectel-gps-init`
+4. Click **Close**, then refresh. **GPS Init** should appear in the store.
+5. Click it and press **Install**
+
+### Option B: Install as a local add-on
+
+Using Samba:
 
 1. Enable the **Samba share** add-on in HA if not already active
-2. Connect to `\\homeassistant\addons` (or `smb://homeassistant/addons` on Mac)
+2. Connect to `\\homeassistant\addons` (or `smb://homeassistant.local/addons` on Mac)
 3. Copy the entire `gps-init/` folder into the `addons` share
 
 Using SSH/SCP:
@@ -45,91 +79,90 @@ Using SSH/SCP:
 scp -r gps-init/ root@homeassistant.local:/addons/gps-init/
 ```
 
-### 2. Install the add-on
+Then in HA: **Settings > Add-ons > Add-on Store** > three-dot menu > **Check for updates**. It should appear under **Local add-ons**.
 
-1. In Home Assistant, go to **Settings → Add-ons**
-2. Click the **Add-on Store** button (bottom right)
-3. Click the three-dot menu (top right) → **Check for updates**
-4. The **GPS Init** add-on should appear under **Local add-ons**
-5. Click it and press **Install**
+## Configuration
 
-### 3. Configure (optional)
-
-The default AT command port is `/dev/ttyUSB2`. If your modem enumerates differently, go to the add-on's **Configuration** tab and change the `at_port` value.
-
-> **Tip:** For stability, you can use `/dev/serial/by-id/...` paths instead of `/dev/ttyUSBx`, since USB port numbers can shift if other devices are plugged in. Check available paths with `ls /dev/serial/by-id/` via SSH.
-
-### 4. Start the add-on
-
-1. Go to the add-on's **Info** tab
-2. Enable **Start on boot** (should already be on)
-3. Click **Start**
-4. Check the **Log** tab — you should see `OK` responses for each AT command
+1. Go to the add-on's **Configuration** tab
+2. Select the modem's **AT command port** from the dropdown — typically the `if02` interface
+   - Example: `/dev/serial/by-id/usb-Android_Android-if02-port0`
+   - If unsure, `ttyUSB2` is the default for Quectel modems
+3. Enable **Start on boot**
+4. Click **Start**
+5. Check the **Log** tab — you should see `OK` responses for each AT command
 
 ## Setting Up the GPS Pipeline
 
 This add-on is step 1 of a 3-part pipeline:
 
 ```
-gps-init          →  gpsd add-on        →  HA GPSD integration
-(this add-on)        (leo-stan)             (built-in)
+GPS Init             gpsd add-on            HA GPSD integration
+(this add-on)   -->  (e.g. gpsd2mqtt)  -->  (built-in)
 Sends AT cmds        Reads NMEA from        Exposes lat/lon as
-to /dev/ttyUSB2      /dev/ttyUSB1           HA sensor entities
+to AT port           NMEA port              HA sensor entities
 ```
 
-### Step 2: Install the gpsd add-on
+### Step 2: Install a gpsd add-on
 
-1. Go to **Settings → Add-ons → Add-on Store** → three-dot menu → **Repositories**
-2. Add: `https://github.com/leo-stan/ha-addon-gpsd`
-3. Install the **GSPD** add-on
-4. Configure it to use `/dev/ttyUSB1` as the GPS device
-5. Start it — it should begin reading NMEA sentences
+We recommend [gpsd2mqtt](https://github.com/corvy/ha-addons/tree/main/gpsd2mqtt):
+
+1. Go to **Settings > Add-ons > Add-on Store** > three-dot menu > **Repositories**
+2. Add: `https://github.com/corvy/ha-addons`
+3. Install **GPSD to MQTT**
+4. Configure the GPS device to the modem's **NMEA port** (the `if01` interface):
+   - Example: `/dev/serial/by-id/usb-Android_Android-if01-port0`
+5. Start it
 
 ### Step 3: Enable the GPSD integration
 
-1. Go to **Settings → Devices & Services → Add Integration**
+1. Go to **Settings > Devices & Services > Add Integration**
 2. Search for **GPSD**
 3. Host: `localhost`, Port: `2947`
-4. You should see latitude, longitude, and other GPS attributes as sensor entities
+4. Latitude, longitude, and other GPS attributes appear as sensor entities
 
 ## Troubleshooting
 
 ### No /dev/ttyUSB* devices
 
 - Check that the Mini PCIe module is seated properly
-- SSH in and run `lsusb` — you should see a Quectel device
-- Check `dmesg | grep -i quectel` for driver loading messages
+- SSH in and run `lsusb` — look for vendor ID `2c7c` (Quectel)
+- Check `dmesg | grep -i -E "quectel|option|ttyUSB"` for driver messages
 - The `option` kernel module must be loaded
 
 ### AT commands return ERROR
 
-- The modem may not be fully booted yet — the add-on waits up to 60 seconds, but you can increase retries in `run.sh`
-- Try sending `AT` manually: `echo -e "AT\r" > /dev/ttyUSB2 && timeout 2 cat /dev/ttyUSB2`
+- The modem may not be fully booted yet — the add-on waits up to 60 seconds
+- Try manually: `echo -e "AT\r" > /dev/ttyUSB2 && timeout 2 cat /dev/ttyUSB2`
+
+### CME ERROR: 504 on AT+QGPS=1
+
+- This means GPS is already running (likely because `autogps` was previously set). This is harmless.
 
 ### GPS fix takes a long time
 
-- First fix (cold start) can take 1-5 minutes with clear sky view
-- The EG25-G supports gpsOneXTRA assisted GPS — this requires a data connection, which we've disabled with `CFUN=4`. For GPS-only use, cold starts are expected
-- Ensure the GPS antenna has a clear view of the sky
+- Cold start can take 1-5 minutes with clear sky view
+- gpsOneXTRA assisted GPS requires a data connection, which is disabled by `CFUN=4`. Cold starts are expected in GPS-only mode.
+- Ensure the GNSS antenna has a clear view of the sky
 
-### gpsd add-on can't read /dev/ttyUSB1
+### gpsd add-on can't read NMEA port
 
-- Make sure the gpsd add-on also has `full_access: true` or the device is mapped
-- Verify NMEA output: SSH in and run `cat /dev/ttyUSB1` — you should see `$GPGGA`, `$GPRMC`, etc.
+- Make sure the gpsd add-on also has device access (check its configuration)
+- Verify NMEA output: SSH in and run `timeout 5 cat /dev/ttyUSB1` — you should see `$GPGGA`, `$GPRMC`, etc.
 
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `config.yaml` | Add-on metadata, options, device access |
-| `Dockerfile` | Container build (HA base image, no extra deps) |
+| `Dockerfile` | Container build (Alpine base, no extra deps beyond bash/coreutils) |
 | `run.sh` | Sends AT commands at boot, then idles |
+| `build.yaml` | Build architecture configuration |
+| `repository.yaml` | HA add-on repository metadata |
 
 ## References
 
-- [Quectel EG25-G Product Page](https://www.quectel.com/product/lte-eg25-g/)
+- [Quectel EC25 Product Page](https://www.quectel.com/product/lte-ec25-series/)
 - [Quectel GNSS AT Commands Manual (PDF)](https://sixfab.com/wp-content/uploads/2018/09/Quectel_EC25EC21_GNSS_AT_Commands_Manual_V1.1.pdf)
 - [Quectel GNSS Application Note (PDF)](https://forums.quectel.com/uploads/short-url/jujxS4iCyMIMmoYNv61ixKO9Ij9.pdf)
-- [Leo-stan's gpsd add-on](https://github.com/leo-stan/ha-addon-gpsd)
+- [gpsd2mqtt Add-on](https://github.com/corvy/ha-addons/tree/main/gpsd2mqtt)
 - [HA GPSD Integration](https://www.home-assistant.io/integrations/gpsd/)
-- [Arduino Pro 4G GNSS Module](https://store-usa.arduino.cc/products/4g-module-global)
