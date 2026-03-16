@@ -1,0 +1,25 @@
+name: GPS Init
+description: Initializes Quectel EG25-G modem for GPS-only mode (disables cellular radio, enables GNSS)
+version: "1.0.2"
+slug: gps-init
+url: https://github.com/your-repo/gps-init
+arch:
+  - aarch64
+startup: system
+boot: auto
+full_access: true
+privileged:
+  - SYS_RAWIO
+devices:
+  - /dev/ttyUSB0
+  - /dev/ttyUSB1
+  - /dev/ttyUSB2
+  - /dev/ttyUSB3
+  - /dev/serial/by-id/usb-Android_Android-if00-port0
+  - /dev/serial/by-id/usb-Android_Android-if01-port0
+  - /dev/serial/by-id/usb-Android_Android-if02-port0
+  - /dev/serial/by-id/usb-Android_Android-if03-port0
+options:
+  at_port: /dev/serial/by-id/usb-Android_Android-if02-port0
+schema:
+  at_port: str
