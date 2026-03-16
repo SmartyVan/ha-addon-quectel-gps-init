@@ -2,7 +2,12 @@
 
 A minimal Home Assistant OS add-on that initializes Quectel Mini PCIe modems for **GPS-only mode** (no cellular). Sends AT commands at boot to disable the cellular radio and enable GNSS, then NMEA sentences flow on a separate USB serial port for gpsd to consume.
 
-Tested with the Quectel EC25-A on a Seeed Studio Raspberry Pi CM5 edge computer.
+Tested with the [Quectel EC25-A](https://store.rokland.com/products/quectel-ec25-v-ec25a-mini-pcie-4g-lte-gnss-gps-cellular-module?variant=42260032159827) on a [Seeed Studio Raspberry Pi CM5 edge computer](https://www.seeedstudio.com/reComputer-AI-Industrial-R2135-12-p-6432.html?sensecap_affiliate=KzUOYto&referring_service=link).
+
+You will also want a [U.FL to SMA connector](https://amzn.to/4bfqqc5) to connect to your antenna.
+
+![Seeed Studio AI Computer with Quectel EC25-A](example_setup.jpg)
+
 
 ## What It Does
 
